@@ -12,26 +12,26 @@
   "antiInbox": false,
   "language": "en",
   "notesLanguage": "change to your language with ISO 639-1 code, available languages: vi (Vietnamese), en (English)",
-  "nickNameBot": "ANU'S-WIFY",
+  "nickNameBot": "🎀HI NA TA🎀",
   "prefix": "!",
   "adminOnly": {
     "enable": false,
     "ignoreCommand": []
   },
   "adminBot": [
-    "100092707489189",
-    "100092707489189",
-    "100092707489189"
+    "61573375301770",
+    "",
+    ""
   ],
   "developers": [
-    "100092707489189",
-    "100092707489189",
-    "100092707489189"
+    "61573375301770",
+    "",
+    ""
   ],
   "premium": [
-    "100092707489189",
-    "100092707489189",
-    "100092707489189"
+    "61573375301770",
+    "",
+    ""
   ],
   "whiteListMode": {
     "enable": false,
