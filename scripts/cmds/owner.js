@@ -23,7 +23,7 @@ module.exports = {
 
     // 🛠 Convert Google Drive view link to direct download link
     const fileId = "1QQ4rcb5mnLytHKuavPxOjx0rF-YuOTaS";
-    const directURL = `https://drive.google.com/uc?export=download&id=${fileId}`;
+    const directURL = `https://files.catbox.moe/ijubjp.mp4`;
 
     // ⏬ Download the file temporarily
     const filePath = path.join(__dirname, "owner-video.mp4");
@@ -46,14 +46,14 @@ module.exports = {
 👋 𝗛𝗲𝗹𝗹𝗼, ${name}
 
 📌 𝗕𝗢𝗧 𝗜𝗡𝗙𝗢
-• 𝗡𝗮𝗺𝗲➝ Ꭺɴu࿐
+• 𝗡𝗮𝗺𝗲➝ ✨HI NA TA✨
 • 𝗣𝗿𝗲𝗳𝗶𝘅 ➝! 
 
 👤 𝗢𝗪𝗡𝗘𝗥 𝗜𝗡𝗙𝗢
-• 𝗡𝗮𝗺𝗲 ➝ Ꭺʏꫝɴ࿐
+• 𝗡𝗮𝗺𝗲 ➝ ⚡𝐀𝐘𝐀𝐍✨
 • 𝗚𝗲𝗻𝗱𝗲𝗿 ➝ 𝗠𝗮𝗹𝗲
 • 𝗔𝗴𝗲 ➝ 18💋
-• 𝗦𝘁𝗮𝘁𝘂𝘀 ➝ ᴍᴀʀʀɪᴇᴅ ᴡɪᴛʜ ɴɪꜱʜᴜ✨
+• 𝗦𝘁𝗮𝘁𝘂𝘀 ➝ SINGEL✨
 • 𝗘𝗱𝘂𝗰𝗮𝘁𝗶𝗼𝗻 ➝ 𝗗𝗶𝗽𝗹𝗼𝗺𝗮 𝗶𝗻 𝗖𝗶𝘃𝗶𝗹 𝗘𝗻𝗴𝗶𝗻𝗲𝗲𝗿𝗶𝗻𝗴
 • 𝗟𝗼𝗰𝗮𝘁𝗶𝗼𝗻 ➝ ɢᴀᴢɪᴘᴜʀ⚡
 ━━━━━━━━━━━━━━━━━`;
