@@ -1,101 +1,58 @@
-const deltaNext = global.GoatBot.configCommands.envCommands.rank.deltaNext;
-const expToLevel = exp => Math.floor((1 + Math.sqrt(1 + 8 * exp / deltaNext)) / 2);
-const { drive } = global.utils;
-
 module.exports = {
-	config: {
-		name: "rankup",
-		version: "1.4",
-		author: "NTKhang",
-		countDown: 5,
-		role: 0,
-		description: {
-			vi: "Bật/tắt thông báo level up",
-			en: "Turn on/off level up notification"
-		},
-		category: "rank",
-		guide: {
-			en: "{pn} [on | off]"
-		},
-		envConfig: {
-			deltaNext: 5
-		}
-	},
+ config: {
+ name: "levelup",
+ aliases: ["setrank", "setlevel", "rankup", "rankdown"],
+ version: "1.2",
+ author: "Chitron Bhattacharjee",
+ countDown: 5,
+ role: 1,
+ shortDescription: {
+ en: "Set user's level (with exp sync)"
+ },
+ description: {
+ en: "Boost or reduce user level and syncs XP with rank system"
+ },
+ category: "ranking",
+ guide: {
+ en: "{pn} @tag 10/20\n{pn} 25\n{pn} @tag -5 (to level down)"
+ }
+ },
 
-	langs: {
-		vi: {
-			syntaxError: "Sai cú pháp, chỉ có thể dùng {pn} on hoặc {pn} off",
-			turnedOn: "Đã bật thông báo level up",
-			turnedOff: "Đã tắt thông báo level up",
-			notiMessage: "🎉🎉 chúc mừng bạn đạt level %1"
-		},
-		en: {
-			syntaxError: "Syntax error, only use {pn} on or {pn} off",
-			turnedOn: "Turned on level up notification",
-			turnedOff: "Turned off level up notification",
-			notiMessage: "🎉🎉 Congratulations on reaching level %1"
-		}
-	},
+ onStart: async function ({ message, event, args, usersData, envCommands }) {
+ const deltaNext = envCommands["rank"]?.deltaNext || 5;
 
-	onStart: async function ({ message, event, threadsData, args, getLang }) {
-		if (!["on", "off"].includes(args[0]))
-			return message.reply(getLang("syntaxError"));
-		await threadsData.set(event.threadID, args[0] == "on", "settings.sendRankupMessage");
-		return message.reply(args[0] == "on" ? getLang("turnedOn") : getLang("turnedOff"));
-	},
+ const targetID = event.type === "message_reply"
+ ? event.messageReply.senderID
+ : Object.keys(event.mentions || {})[0];
 
-	onChat: async function ({ threadsData, usersData, event, message, getLang }) {
-		const threadData = await threadsData.get(event.threadID);
-		const sendRankupMessage = threadData.settings.sendRankupMessage;
-		if (!sendRankupMessage)
-			return;
-		const { exp } = await usersData.get(event.senderID);
-		const currentLevel = expToLevel(exp);
-		if (currentLevel > expToLevel(exp - 1)) {
-			let customMessage = await threadsData.get(event.threadID, "data.rankup.message");
-			let isTag = false;
-			let userData;
-			const formMessage = {};
+ if (!targetID)
+ return message.reply("❌ | Please tag or reply to a user.");
 
-			if (customMessage) {
-				userData = await usersData.get(event.senderID);
-				customMessage = customMessage
-					// .replace(/{userName}/g, userData.name)
-					.replace(/{oldRank}/g, currentLevel - 1)
-					.replace(/{currentRank}/g, currentLevel);
-				if (customMessage.includes("{userNameTag}")) {
-					isTag = true;
-					customMessage = customMessage.replace(/{userNameTag}/g, `@${userData.name}`);
-				}
-				else {
-					customMessage = customMessage.replace(/{userName}/g, userData.name);
-				}
+ const input = args.find(arg => !isNaN(arg) || arg.includes("/"));
+ if (!input)
+ return message.reply("⚠️ | Provide a level number or range (e.g. 10/20)");
 
-				formMessage.body = customMessage;
-			}
-			else {
-				formMessage.body = getLang("notiMessage", currentLevel);
-			}
+ let levelChange;
+ if (input.includes("/")) {
+ const [min, max] = input.split("/").map(Number);
+ if (isNaN(min) || isNaN(max) || min > max)
+ return message.reply("❌ Invalid range.");
+ levelChange = Math.floor(Math.random() * (max - min + 1)) + min;
+ } else {
+ levelChange = parseInt(input);
+ }
 
-			if (threadData.data.rankup?.attachments?.length > 0) {
-				const files = threadData.data.rankup.attachments;
-				const attachments = files.reduce((acc, file) => {
-					acc.push(drive.getFile(file, "stream"));
-					return acc;
-				}, []);
-				formMessage.attachment = (await Promise.allSettled(attachments))
-					.filter(({ status }) => status == "fulfilled")
-					.map(({ value }) => value);
-			}
+ const userData = await usersData.get(targetID);
+ let oldExp = userData.exp || 0;
 
-			if (isTag) {
-				formMessage.mentions = [{
-					tag: `@${userData.name}`,
-					id: event.senderID
-				}];
-			}
+ const oldLevel = Math.floor((1 + Math.sqrt(1 + 8 * oldExp / deltaNext)) / 2);
+ const newLevel = oldLevel + levelChange;
+ const newExp = Math.floor(((newLevel ** 2 - newLevel) * deltaNext) / 2);
 
-			message.reply(formMessage);
-		}
-	}
+ await usersData.set(targetID, { exp: newExp });
+
+ return message.reply(
+ `📈 𝗟𝗲𝘃𝗲𝗹 𝗨𝗽𝗱𝗮𝘁𝗲\n━━━━━━━━━━━━━━\n👤 𝗨𝘀𝗲𝗿: ${userData.name}\n🎚️ 𝗟𝗲𝘃𝗲𝗹: ${oldLevel} → ${newLevel}\n✨ 𝗘𝗫𝗣: ${oldExp} → ${newExp}`
+ );
+ }
 };
