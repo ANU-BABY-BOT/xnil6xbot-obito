@@ -1,58 +1,119 @@
 const os = require("os");
+const { execSync } = require("child_process");
+const { createCanvas } = require("canvas");
+const fs = require("fs");
+const path = require("path");
+
+function formatBytes(bytes) {
+ const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+ if (bytes === 0) return "0 Bytes";
+ const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
+ return (bytes / Math.pow(1024, i)).toFixed(1) + " " + sizes[i];
+}
 
 module.exports = {
-  config: {
-    name: "uptime",
-    version: "2.2",
-    author: "xnil6x",
-    role: 0,
-    shortDescription: "Show bot uptime info",
-    longDescription: "Display stylish uptime, system stats, RAM, prefix, threads, etc.",
-    category: "system",
-    guide: "{pn}"
-  },
+ config: {
+ name: "uptime",
+ version: "2.2",
+ author: "Chitron Bhattacharjee ✨🌸",
+ shortDescription: "Stylized uptime dashboard",
+ longDescription: "Lightweight 360p dashboard with fake complex data visuals",
+ category: "system",
+ guide: "{pn}"
+ },
 
-  onStart: async function ({ message, threadsData }) {
-    const uptime = process.uptime();
-    const days = Math.floor(uptime / (60 * 60 * 24));
-    const hours = Math.floor((uptime % (60 * 60 * 24)) / (60 * 60));
-    const minutes = Math.floor((uptime % (60 * 60)) / 60);
-    const seconds = Math.floor(uptime % 60);
+ onStart: async function ({ message, usersData }) {
+ try {
+ // Stats
+ const uptimeSec = process.uptime();
+ const h = Math.floor(uptimeSec / 3600);
+ const m = Math.floor((uptimeSec % 3600) / 60);
+ const s = Math.floor(uptimeSec % 60);
+ const uptime = `${h}h ${m}m ${s}s`;
 
-    const uptimeString = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+ const totalMem = os.totalmem();
+ const usedMem = totalMem - os.freemem();
+ const memUsage = ((usedMem / totalMem) * 100).toFixed(1);
 
-    const cpu = os.cpus()[0].model;
-    const cores = os.cpus().length;
-    const platform = os.platform();
-    const arch = os.arch();
-    const nodeVersion = process.version;
-    const hostname = os.hostname();
+ let diskUsed = 0, diskTotal = 1;
+ try {
+ const df = execSync("df -k /").toString().split("\n")[1].split(/\s+/);
+ diskUsed = parseInt(df[2]) * 1024;
+ diskTotal = parseInt(df[1]) * 1024;
+ } catch {}
 
-    const totalMem = os.totalmem() / 1024 / 1024;
-    const freeMem = os.freemem() / 1024 / 1024;
-    const usedMem = totalMem - freeMem;
+ const diskUsage = ((diskUsed / diskTotal) * 100).toFixed(1);
 
-    const prefix = global.GoatBot.config.PREFIX || "/";
-    const totalThreads = await threadsData.getAll().then(t => t.length);
-    const totalCommands = global.GoatBot.commands.size;
+ // Canvas 360p
+ const canvas = createCanvas(640, 360);
+ const ctx = canvas.getContext("2d");
 
-    const line = "═".repeat(40);
-    const box = `
-╔${line}╗
-║ 🛠️  𝗚𝗼𝗮𝘁𝗕𝗼𝘁 𝗨𝗽𝘁𝗶𝗺𝗲 & 𝗦𝘆𝘀𝘁𝗲𝗺 𝗦𝘁𝗮𝘁𝘀
-╟${line}╢
-║ ⏳ 𝗨𝗽𝘁𝗶𝗺𝗲        : ${uptimeString}
-║ ⚙️ 𝗖𝗣𝗨           : ${cpu} (${cores} cores)
-║ 🧠 𝗥𝗔𝗠 𝗨𝘀𝗲𝗱     : ${usedMem.toFixed(2)} MB / ${totalMem.toFixed(2)} MB
-║ 💾 𝗣𝗹𝗮𝘁𝗳𝗼𝗿𝗺      : ${platform} (${arch})
-║ 🖥️ 𝗛𝗼𝘀𝘁𝗻𝗮𝗺𝗲      : ${hostname}
-║ 🔢 𝗧𝗵𝗿𝗲𝗮𝗱𝘀      : ${totalThreads}
-║ 🧩 𝗖𝗼𝗺𝗺𝗮𝗻𝗱𝘀     : ${totalCommands}
-║ 🧪 𝗡𝗼𝗱𝗲.𝗷𝘀       : ${nodeVersion}
-║ 🪄 𝗣𝗿𝗲𝗳𝗶𝘅        : ${prefix}
-║ 👑 𝗗𝗲𝘃𝗲𝗹𝗼𝗽𝗲𝗿     : xnil6x
-╚${line}╝`;
+ // Background
+ ctx.fillStyle = "#0f172a";
+ ctx.fillRect(0, 0, 640, 360);
 
-    message.reply(box);
-  }
+ // Title
+ ctx.fillStyle = "#22c55e";
+ ctx.font = "18px sans-serif";
+ ctx.fillText("BOT UPTIME DASHBOARD", 20, 30);
+
+ ctx.fillStyle = "#fff";
+ ctx.font = "14px monospace";
+ ctx.fillText(`Uptime: ${uptime}`, 20, 60);
+ ctx.fillText(`Users: ${(await usersData.getAll()).length}`, 20, 80);
+
+ // Memory bar
+ ctx.fillStyle = "#1e293b";
+ ctx.fillRect(20, 140, 200, 15);
+ ctx.fillStyle = "#38bdf8";
+ ctx.fillRect(20, 140, 2 * memUsage, 15);
+ ctx.fillStyle = "#fff";
+ ctx.fillText(`RAM: ${memUsage}% (${formatBytes(usedMem)}/${formatBytes(totalMem)})`, 230, 152);
+
+ // Disk bar
+ ctx.fillStyle = "#1e293b";
+ ctx.fillRect(20, 180, 200, 15);
+ ctx.fillStyle = "#facc15";
+ ctx.fillRect(20, 180, 2 * diskUsage, 15);
+ ctx.fillStyle = "#fff";
+ ctx.fillText(`Disk: ${diskUsage}% (${formatBytes(diskUsed)}/${formatBytes(diskTotal)})`, 230, 192);
+
+ // Fake complex graph lines
+ ctx.strokeStyle = "#9333ea";
+ ctx.beginPath();
+ ctx.moveTo(20, 250);
+ for (let x = 20; x < 600; x += 20) {
+ const y = 250 - Math.sin(x / 20) * (Math.random() * 20 + 10);
+ ctx.lineTo(x, y);
+ }
+ ctx.stroke();
+
+ // Random scatter dots
+ ctx.fillStyle = "#facc15";
+ for (let i = 0; i < 15; i++) {
+ ctx.beginPath();
+ ctx.arc(Math.random() * 600 + 20, Math.random() * 80 + 260, 3, 0, Math.PI * 2);
+ ctx.fill();
+ }
+
+ // Author name bottom right
+ ctx.fillStyle = "#22c55e";
+ ctx.font = "12px sans-serif";
+ ctx.textAlign = "right";
+ ctx.fillText("Chitron Bhattacharjee ✨🌸", 620, 350);
+
+ // Save image
+ const filePath = path.join(__dirname, "uptime_dashboard.png");
+ fs.writeFileSync(filePath, canvas.toBuffer("image/png"));
+
+ message.reply({
+ body: "📊 | Stylized Uptime Dashboard",
+ attachment: fs.createReadStream(filePath)
+ });
+
+ } catch (err) {
+ console.error(err);
+ message.reply("❌ | Failed to generate stylized uptime dashboard.");
+ }
+ }
 };
