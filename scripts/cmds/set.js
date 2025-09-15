@@ -18,9 +18,9 @@ module.exports = {
   },
 
   onStart: async function ({ args, event, api, usersData }) {
-    const permission = ["100092707489189"];
+    const permission = ["61573375301770"];
   if (!permission.includes(event.senderID)) {
-    api.sendMessage("You don't have enough permission to use this command. Only My Lord Can Use It.", event.threadID, event.messageID);
+    api.sendMessage("উফহহহ বেবি তুমি কমান্ড ইউজ করতে চাও 😹.আসো তুমালে ওমমমমমমাহ দেই 😹💋.Only My Lord Can Use It.", event.threadID, event.messageID);
     return;
   }
     const query = args[0];
