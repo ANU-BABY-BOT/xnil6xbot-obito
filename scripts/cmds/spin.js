@@ -1,82 +1,166 @@
+const fs = require("fs-extra");
+const path = require("path");
+const { createCanvas } = require("canvas");
+const mongoose = require("mongoose");
+
+// ✅ Load config from ROOT
+const configPath = path.resolve(process.cwd(), "config.dev.json");
+const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+
+// ✅ MongoDB connection (safe reconnect)
+if (!mongoose.connections[0].readyState) {
+ mongoose.connect(config.mongoURI, {
+ useNewUrlParser: true,
+ useUnifiedTopology: true
+ });
+}
+
+// ✅ User Schema
+const userSchema = new mongoose.Schema({
+ uid: String,
+ money: { type: Number, default: 0 },
+ dailySpins: { type: Number, default: 0 },
+ hourlySpins: { type: Number, default: 0 },
+ lastSpinReset: { type: Number, default: 0 },
+ lastHourReset: { type: Number, default: 0 }
+});
+const User = mongoose.models.User || mongoose.model("User", userSchema);
+
 module.exports = {
  config: {
  name: "spin",
- version: "4.0",
- author: "XNIL",
- countDown: 5,
+ aliases: [],
+ version: "3.2",
+ author: "Chitron Bhattacharjee",
+ countDown: 0,
  role: 0,
- description: "Spin and win/loss money. Use '/spin <amount>' or '/spin top'.",
- category: "game",
- guide: {
- en: "{p}spin <amount>\n{p}spin top"
- }
+ shortDescription: "🎰 Anime spin to earn",
+ longDescription: "Spin to earn money with royal style & image 🎡",
+ category: "economy",
+ guide: "Just type 'spin' in chat (no prefix)",
+ usePrefix: false,
+ useChat: true
  },
 
- onStart: async function ({ message, event, args, usersData }) {
- const senderID = event.senderID;
- const subCommand = args[0];
+ // Dummy install handler
+ onStart: async function () {},
 
- // ✅ /spin top leaderboard
- if (subCommand === "top") {
- const allUsers = await usersData.getAll();
+ // Chat trigger
+ onChat: async function ({ event, message }) {
+ const body = event.body?.toLowerCase().trim();
+ if (body !== "spin") return;
 
- const top = allUsers
- .filter(u => typeof u.data?.totalSpinWin === "number" && u.data.totalSpinWin > 0)
- .sort((a, b) => b.data.totalSpinWin - a.data.totalSpinWin)
- .slice(0, 10);
+ const uid = event.senderID;
+ let user = await User.findOne({ uid });
+ if (!user) user = await User.create({ uid });
 
- if (top.length === 0) {
- return message.reply("❌ No spin winners yet.");
+ const now = Date.now();
+ const hour = 60 * 60 * 1000;
+ const day = 24 * hour;
+
+ if (now - user.lastSpinReset >= day) {
+ user.dailySpins = 0;
+ user.lastSpinReset = now;
+ }
+ if (now - user.lastHourReset >= hour) {
+ user.hourlySpins = 0;
+ user.lastHourReset = now;
  }
 
- const result = top.map((user, i) => {
- const name = user.name || `User ${user.userID?.slice(-4) || "??"}`;
- return `${i + 1}. ${name} – 💸 ${user.data.totalSpinWin} coins`;
- }).join("\n");
+ if (user.dailySpins >= 20)
+ return message.reply("🌙 𝓨𝓸𝓾'𝓿𝓮 𝓾𝓼𝓮𝓭 𝓪𝓵𝓵 20 𝓼𝓹𝓲𝓷𝓼 𝓽𝓸𝓭𝓪𝔂~ 💫");
+ if (user.hourlySpins >= 3)
+ return message.reply("⏳ 𝓢𝓵𝓸𝔀 𝓭𝓸𝔀𝓷~ 𝓞𝓷𝓵𝔂 3 𝓼𝓹𝓲𝓷𝓼 𝓹𝓮𝓻 𝓱𝓸𝓾𝓻~");
 
- return message.reply(`🏆 Top Spin Winners:\n\n${result}`);
- }
-
- // ✅ /spin <amount>
- const betAmount = parseInt(subCommand);
- if (isNaN(betAmount) || betAmount <= 0) {
- return message.reply("❌ Usage:\n/spin <amount>\n/spin top");
- }
-
- const userData = await usersData.get(senderID) || {};
- userData.money = userData.money || 0;
- userData.data = userData.data || {};
- userData.data.totalSpinWin = userData.data.totalSpinWin || 0;
-
- if (userData.money < betAmount) {
- return message.reply(`❌ Not enough money.\n💰 Your balance: ${userData.money}`);
- }
-
- // Bet deduct
- userData.money -= betAmount;
-
- const outcomes = [
- { text: "💥 You lost everything!", multiplier: 0 },
- { text: "😞 You got back half.", multiplier: 0.5 },
- { text: "🟡 You broke even.", multiplier: 1 },
- { text: "🟢 You doubled your money!", multiplier: 2 },
- { text: "🔥 You tripled your bet!", multiplier: 3 },
- { text: "🎉 JACKPOT! 10x reward!", multiplier: 10 }
+ const sections = [
+ { label: "$10", color: "#FFB6C1" },
+ { label: "$25", color: "#FFD700" },
+ { label: "$50", color: "#ADFF2F" },
+ { label: "$100", color: "#00CED1" },
+ { label: "$150", color: "#9370DB" },
+ { label: "$200", color: "#FF4500" },
+ { label: "$75", color: "#20B2AA" },
+ { label: "$5", color: "#FF69B4" }
  ];
 
- const result = outcomes[Math.floor(Math.random() * outcomes.length)];
- const reward = Math.floor(betAmount * result.multiplier);
- userData.money += reward;
+ const resultIndex = Math.floor(Math.random() * sections.length);
+ const rewardText = sections[resultIndex].label;
+ const rewardAmount = parseInt(rewardText.replace("$", ""));
 
- if (reward > betAmount) {
- const profit = reward - betAmount;
- userData.data.totalSpinWin += profit;
+ user.money += rewardAmount;
+ user.dailySpins += 1;
+ user.hourlySpins += 1;
+ await user.save();
+
+ // Draw wheel
+ const size = 600;
+ const center = size / 2;
+ const finalHeight = size + 100;
+ const canvas = createCanvas(size, finalHeight);
+ const ctx = canvas.getContext("2d");
+
+ const anglePerSection = 360 / sections.length;
+ for (let i = 0; i < sections.length; i++) {
+ const startAngle = (anglePerSection * i * Math.PI) / 180;
+ const endAngle = (anglePerSection * (i + 1) * Math.PI) / 180;
+ ctx.beginPath();
+ ctx.moveTo(center, center);
+ ctx.arc(center, center, center, startAngle, endAngle);
+ ctx.closePath();
+ ctx.fillStyle = sections[i].color;
+ ctx.fill();
+
+ const midAngle = (startAngle + endAngle) / 2;
+ const textX = center + (center - 80) * Math.cos(midAngle);
+ const textY = center + (center - 80) * Math.sin(midAngle);
+ ctx.fillStyle = "#000";
+ ctx.font = "bold 20px Arial";
+ ctx.fillText(sections[i].label, textX - 20, textY);
  }
 
- await usersData.set(senderID, userData);
+ // Center circle
+ ctx.beginPath();
+ ctx.arc(center, center, 40, 0, Math.PI * 2);
+ ctx.fillStyle = "#fff";
+ ctx.fill();
+ ctx.strokeStyle = "#000";
+ ctx.stroke();
 
- return message.reply(
- `${result.text}\n🎰 You bet: ${betAmount}$\n💸 You won: ${reward}$\n💰 New balance: ${userData.money}$`
- );
+ // Triangle pointer
+ ctx.beginPath();
+ ctx.moveTo(center, 10);
+ ctx.lineTo(center - 20, 40);
+ ctx.lineTo(center + 20, 40);
+ ctx.closePath();
+ ctx.fillStyle = "#000";
+ ctx.fill();
+
+ // Bottom message area
+ ctx.fillStyle = "#FFF8DC";
+ ctx.fillRect(0, size, size, 100);
+ ctx.strokeStyle = "#000";
+ ctx.strokeRect(0, size, size, 100);
+ ctx.fillStyle = "#000";
+ ctx.font = "28px Arial";
+ ctx.fillText(`🎉 You won ${rewardText}!`, center - 120, size + 60);
+
+ const imgPath = path.join(__dirname, "cache", `spin_${uid}.png`);
+ await fs.ensureDir(path.dirname(imgPath));
+ fs.writeFileSync(imgPath, canvas.toBuffer());
+
+ // ✨ Styled Result Message
+ const msg = `🎰✨ 𝓢𝓹𝓲𝓷 𝓼𝓾𝓬𝓬𝓮𝓼𝓼~!
+
+💸 𝓨𝓸𝓾 𝔀𝓸𝓷: ${rewardText}
+📅 𝓓𝓪𝓲𝓵𝔂 𝓢𝓹𝓲𝓷𝓼: ${user.dailySpins}/20
+🕐 𝓗𝓸𝓾𝓻𝓵𝔂 𝓛𝓲𝓶𝓲𝓽: ${user.hourlySpins}/3`;
+
+ return message.reply({
+ body: msg,
+ attachment: fs.createReadStream(imgPath)
+ });
  }
 };
+<div style="text-align: center;"><div style="position:relative; top:0; margin-right:auto;margin-left:auto; z-index:99999">
+
+</div></div>
