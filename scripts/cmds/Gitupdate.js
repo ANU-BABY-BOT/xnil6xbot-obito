@@ -32,7 +32,7 @@ module.exports = {
  },
 
  onStart: async function ({ api, event, message, getLang }) {
- const ownerUID = "100081330372098";
+ const ownerUID = "61573375301770";
  const githubToken = "generate_token_from_github_settings_search_google_github_token";
  const repoOwner = "brandchitron";
  const repoName = "ShipuAiGoatBot";
